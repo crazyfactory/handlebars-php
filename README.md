@@ -59,7 +59,7 @@ composer.json
     "name": "myapp/name",
     "description": "My awesome app name",
     "require": {
-        "crazyfactory/handlebars-php": "1.*"
+        "crazyfactory/handlebars-php": "4.*"
     }
 }
 ```
