@@ -1,4 +1,4 @@
-[![PHPUnit](https://github.com/salesforce/handlebars-php/actions/workflows/ci.yml/badge.svg)](https://github.com/salesforce/handlebars-php/actions/workflows/ci.yml)
+[![PHPUnit](https://github.com/crazyfactory/handlebars-php/actions/workflows/ci.yml/badge.svg)](https://github.com/crazyfactory/handlebars-php/actions/workflows/ci.yml)
 
 ---
 
@@ -38,7 +38,19 @@ You can just download Handlebars.php as is, or with Composer.
 
 To install with composer, add the following in the require key in your **composer.json** file
 
-`"salesforce/handlebars-php": "1.*"`
+`"crazyfactory/handlebars-php": "1.*"`
+
+and 
+
+```
+"repositories": [
+    ...
+    {
+        "url": "https://github.com/crazyfactory/handlebars-php.git",
+        "type": "git"
+    }
+]
+```
 
 composer.json
 
@@ -47,7 +59,7 @@ composer.json
     "name": "myapp/name",
     "description": "My awesome app name",
     "require": {
-        "salesforce/handlebars-php": "1.*"
+        "crazyfactory/handlebars-php": "1.*"
     }
 }
 ```
@@ -789,6 +801,7 @@ true, true, 0,
 #### Credits
 
 * Fork of [Handlebars.php by XaminProject](https://github.com/XaminProject/handlebars.php)
+* Fork of [Handlebars.php by Salesforce](https://github.com/salesforce/handlebars-php)
 * The documentation was edited by [Mardix](http://github.com/mardix).
 
 #### Contribution

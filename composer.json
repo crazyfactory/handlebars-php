@@ -1,7 +1,7 @@
 {
-    "name": "salesforce/handlebars-php",
+    "name": "crazyfactory/handlebars-php",
     "description": "Handlebars processor for php",
-    "homepage": "http://www.github.com/salesforce/handlebars-php",
+    "homepage": "http://www.github.com/crazyfactory/handlebars-php",
     "keywords": ["templating", "mustache", "handlebars"],
     "type": "library",
     "license": "MIT",
