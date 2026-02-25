@@ -211,6 +211,107 @@ class HandlebarsTest extends PHPUnit\Framework\TestCase
                 [],
                 "I'm Defined and Invoked"
             ],
+
+            // --- elseif: basic truthiness ---
+            [
+                '{{#if a}}A{{elseif b}}B{{else}}C{{/if}}',
+                ['a' => false, 'b' => true],
+                'B'
+            ],
+            [
+                '{{#if a}}A{{elseif b}}B{{else}}C{{/if}}',
+                ['a' => false, 'b' => false],
+                'C'
+            ],
+            [
+                '{{#if a}}A{{elseif b}}B{{else}}C{{/if}}',
+                ['a' => true, 'b' => true],
+                'A'
+            ],
+
+            // --- elseif: multiple elseif branches ---
+            [
+                '{{#if a}}A{{elseif b}}B{{elseif c}}C{{else}}D{{/if}}',
+                ['a' => false, 'b' => false, 'c' => true],
+                'C'
+            ],
+            [
+                '{{#if a}}A{{elseif b}}B{{elseif c}}C{{else}}D{{/if}}',
+                ['a' => false, 'b' => false, 'c' => false],
+                'D'
+            ],
+
+            // --- if: equality comparison with string literal (backtick expr) ---
+            [
+                '{{#if `type == "product"`}}yes{{else}}no{{/if}}',
+                ['type' => 'product'],
+                'yes'
+            ],
+            [
+                '{{#if `type == "product"`}}yes{{else}}no{{/if}}',
+                ['type' => 'other'],
+                'no'
+            ],
+
+            // --- if: inequality comparison with string literal ---
+            [
+                '{{#if `type != "product"`}}yes{{else}}no{{/if}}',
+                ['type' => 'service'],
+                'yes'
+            ],
+            [
+                '{{#if `type != "product"`}}yes{{else}}no{{/if}}',
+                ['type' => 'product'],
+                'no'
+            ],
+
+            // --- if: equality comparison between two context variables ---
+            [
+                '{{#if `a == b`}}equal{{else}}nope{{/if}}',
+                ['a' => 'hello', 'b' => 'hello'],
+                'equal'
+            ],
+            [
+                '{{#if `a == b`}}equal{{else}}nope{{/if}}',
+                ['a' => 'hello', 'b' => 'world'],
+                'nope'
+            ],
+
+            // --- if: inequality comparison between two context variables ---
+            [
+                '{{#if `a != b`}}diff{{else}}same{{/if}}',
+                ['a' => 'foo', 'b' => 'bar'],
+                'diff'
+            ],
+            [
+                '{{#if `a != b`}}diff{{else}}same{{/if}}',
+                ['a' => 'foo', 'b' => 'foo'],
+                'same'
+            ],
+
+            // --- elseif: comparison expression in elseif branch ---
+            [
+                '{{#if isActive}}active{{elseif `type == "special"`}}special{{else}}default{{/if}}',
+                ['isActive' => false, 'type' => 'special'],
+                'special'
+            ],
+            [
+                '{{#if isActive}}active{{elseif `type == "special"`}}special{{else}}default{{/if}}',
+                ['isActive' => false, 'type' => 'normal'],
+                'default'
+            ],
+
+            // --- if: numeric literal comparison ---
+            [
+                '{{#if `count == 3`}}three{{else}}other{{/if}}',
+                ['count' => '3'],
+                'three'
+            ],
+            [
+                '{{#if `count != 0`}}nonzero{{else}}zero{{/if}}',
+                ['count' => '5'],
+                'nonzero'
+            ],
         ];
     }
 
@@ -419,6 +520,85 @@ class HandlebarsTest extends PHPUnit\Framework\TestCase
             return 'Test helper is called';
         });
         $this->assertEquals('Test helper is called', $engine->render('{{#test}}', []));
+    }
+
+    /**
+     * Test automatic parent-scope variable lookup introduced in Context.php.
+     *
+     * Variables that are not found in the current scope must be looked up in
+     * parent scopes automatically (no explicit ../ required).
+     *
+     * @param string $src
+     * @param array  $data
+     * @param string $expected
+     *
+     * @dataProvider parentScopeProvider
+     */
+    public function testParentScopeLookup($src, $data, $expected)
+    {
+        $loader  = new \Handlebars\Loader\StringLoader();
+        $helpers = new \Handlebars\Helpers();
+        $engine  = new \Handlebars\Handlebars(['loader' => $loader, 'helpers' => $helpers]);
+        $this->assertEquals($expected, $engine->render($src, $data));
+    }
+
+    /**
+     * Data provider for parent-scope lookup tests.
+     *
+     * @return array
+     */
+    public function parentScopeProvider()
+    {
+        return [
+            // Variable from parent scope is accessible inside {{#each}} without ../
+            'implicit parent lookup in each' => [
+                '{{#each items}}{{parentVar}}{{/each}}',
+                ['items' => ['a', 'b'], 'parentVar' => 'X'],
+                'XX',
+            ],
+
+            // Explicit ../ still works as before
+            'explicit parent lookup with ../' => [
+                '{{#each items}}{{../parentVar}}{{/each}}',
+                ['items' => ['a', 'b'], 'parentVar' => 'Y'],
+                'YY',
+            ],
+
+            // The current-scope value shadows the parent-scope value
+            'current scope shadows parent scope' => [
+                '{{#each items}}{{label}}{{/each}}',
+                ['items' => [['label' => 'inner']], 'label' => 'outer'],
+                'inner',
+            ],
+
+            // Nested {{#each}}: a variable two levels up is found automatically
+            'implicit lookup two levels up' => [
+                '{{#each outer}}{{#each inner}}{{rootVar}}{{/each}}{{/each}}',
+                ['outer' => [['inner' => ['x', 'y']]], 'rootVar' => 'R'],
+                'RR',
+            ],
+
+            // Explicit ../ from nested each reaches one level up only
+            'explicit ../ inside nested each reaches nearest parent' => [
+                '{{#each outer}}{{#each inner}}{{../../rootVar}}{{/each}}{{/each}}',
+                ['outer' => [['inner' => ['x']]], 'rootVar' => 'ROOT'],
+                'ROOT',
+            ],
+
+            // Variable present only in innermost scope, not inherited by parent
+            'variable only in current scope' => [
+                '{{#each items}}{{this}}{{/each}}',
+                ['items' => ['one', 'two']],
+                'onetwo',
+            ],
+
+            // dot-path variable from parent scope looked up automatically
+            'implicit parent lookup for dot-path variable' => [
+                '{{#each items}}{{meta.title}}{{/each}}',
+                ['items' => ['a', 'b'], 'meta' => ['title' => 'Hello']],
+                'HelloHello',
+            ],
+        ];
     }
 
     /**

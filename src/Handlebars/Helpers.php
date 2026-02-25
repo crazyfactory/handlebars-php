@@ -202,15 +202,23 @@ class Helpers
     /**
      * Create handler for the 'if' helper.
      *
+     * Conditions may be a plain variable (truthiness check) or a comparison
+     * expression using == or != operators wrapped in backticks. Operands can
+     * be quoted string literals, numeric literals, or context variable paths.
+     *
      * {{#if condition}}
-     *      Something here
-     * {{else if condition}}
-     *      something else if here
-     * {{else if condition}}
-     *      something else if here
+     *      Shown when condition is truthy
+     * {{elseif `condition == "value"`}}
+     *      Shown when condition equals "value"
+     * {{elseif `a != b`}}
+     *      Shown when context variable a does not equal b
      * {{else}}
-     *      something else here
+     *      Shown when none of the above conditions matched
      * {{/if}}
+     *
+     * Note: comparison expressions must be wrapped in backticks.
+     * Note: use {{elseif}} (no # prefix, no space) — {{#elseif}} and
+     * {{else if}} are not supported.
      *
      * @param \Handlebars\Template $template template that is being rendered
      * @param \Handlebars\Context  $context  context object
@@ -224,12 +232,12 @@ class Helpers
     {
         $tpl = $template->getEngine()->loadString('{{#if ' . $args . '}}' . $source . '{{/if}}');
         $tree = $tpl->getTree();
-        $tmp = $context->get($args);
+        $tmp = $this->evaluateCondition($context, $args);
         if ($tmp) {
             $token = 'else';
             foreach ($tree[0]['nodes'] as $node) {
                 $name = trim($node['name'] ?? '');
-                if ($name && substr($name, 0, 7) == 'else if') {
+                if ($name && substr($name, 0, 6) == 'elseif') {
                     $token = $node['name'];
                     break;
                 }
@@ -242,21 +250,21 @@ class Helpers
         } else {
             foreach ($tree[0]['nodes'] as $key => $node) {
                 $name = trim(isset($node['name']) ? $node['name'] : '');
-                if ($name && substr($name, 0, 7) == 'else if') {
+                if ($name && substr($name, 0, 6) == 'elseif') {
                     $template->setStopToken($node['name']);
                     $template->discard();
                     $template->setStopToken(false);
-                    $args = $this->parseArgs($context, substr($name, 7));
+                    $conditionResult = $this->evaluateCondition($context, substr($name, 6));
                     $token = 'else';
                     $remains = array_slice($tree[0]['nodes'], $key + 1);
                     foreach ($remains as $remain) {
-                        $name = trim($remain['name'] ?? '');
-                        if ($name && substr($name, 0, 7) == 'else if') {
+                        $remainName = trim($remain['name'] ?? '');
+                        if ($remainName && substr($remainName, 0, 6) == 'elseif') {
                             $token = $remain['name'];
                             break;
                         }
                     }
-                    if (isset($args[0]) && $args[0]) {
+                    if ($conditionResult) {
                         $template->setStopToken($token);
                         $buffer = $template->render($context);
                         $template->setStopToken(false);
@@ -271,6 +279,56 @@ class Helpers
             }
             return $this->renderElse($template, $context);
         }
+    }
+
+    /**
+     * Evaluate a condition string.
+     *
+     * - Comparison expressions (== / !=) MUST be wrapped in backticks:
+     *     `entry_type == "product"`
+     *     `price.raw != price.original`
+     *   Operands can be quoted string literals, numeric literals, or context
+     *   variable paths.
+     *
+     * - Plain variables are checked for truthiness without backticks:
+     *     some_var
+     *
+     * @param \Handlebars\Context $context
+     * @param string              $args
+     * @return bool
+     */
+    private function evaluateCondition($context, $args)
+    {
+        $args = trim($args, " \t\n\r\0\x0B");
+        if (strlen($args) >= 2 && $args[0] === '`' && $args[-1] === '`') {
+            $expr = trim(substr($args, 1, -1));
+            if (preg_match('/^(.+?)\s*==\s*(.+)$/', $expr, $m)) {
+                return $this->resolveArg($context, trim($m[1])) == $this->resolveArg($context, trim($m[2]));
+            }
+            if (preg_match('/^(.+?)\s*!=\s*(.+)$/', $expr, $m)) {
+                return $this->resolveArg($context, trim($m[1])) != $this->resolveArg($context, trim($m[2]));
+            }
+        }
+        return (bool) $context->get($args);
+    }
+
+    /**
+     * Resolve a single argument token: quoted string literal, numeric, or context variable.
+     *
+     * @param \Handlebars\Context $context
+     * @param string              $arg
+     * @return mixed
+     */
+    private function resolveArg($context, $arg)
+    {
+        $first = substr($arg, 0, 1);
+        if ($first === '"' || $first === "'") {
+            return trim($arg, '"\'');
+        }
+        if (is_numeric($arg)) {
+            return $arg;
+        }
+        return $context->get($arg);
     }
 
 
