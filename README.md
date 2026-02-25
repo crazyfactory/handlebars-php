@@ -241,7 +241,7 @@ Handlebars expressions with a helper. In this case we're using the upper helper
 -> I'M TITLE
 ```
 
-Nested handlebars paths can also include ../ segments, which evaluate their paths against a parent context.
+Nested handlebars paths can also include `../` segments, which evaluate their paths against a parent context.
 
 ```html
 {{#each posts}}
@@ -249,6 +249,8 @@ Nested handlebars paths can also include ../ segments, which evaluate their path
     {{content}}
 {{/each}}
 ```
+
+Variables that are not found in the current scope are **automatically looked up in parent scopes** without requiring an explicit `../` prefix. Explicit `../` still works and forces resolution from a specific ancestor level.
 
 Handlebars HTML-escapes values returned by a {{expression}}. If you don't want Handlebars to escape a value, use the "triple-stash", {{{ }}}
 
@@ -267,15 +269,29 @@ Handlebars HTML-escapes values returned by a {{expression}}. If you don't want H
 
 You can use the if helper to conditionally render a block. If its argument returns false, null, "" or [] (a "falsy" value), Handlebars will not render the block.
 
+Conditions support three forms:
+
+| Form | Example |
+|------|---------|
+| Truthiness check | `{{#if isActive}}` |
+| Equality | `` {{#if `type == "product"`}} `` |
+| Inequality | `` {{#if `price != originalPrice`}} `` |
+
+Comparison expressions (`==` / `!=`) must be wrapped in backticks. Operands can be quoted string literals, numeric literals, or context variable paths.
+
+> **Note:** Use `{{elseif ...}}` (no `#` prefix, no space) — `{{#elseif ...}}` and `{{else if ...}}` are not supported.
+
 **Example**
 
 ```html
 {{#if isActive}}
     This part will be shown if it is active
-{{#else if isValid}}
-    This part will be shown if it is valid
+{{elseif `type == "special"`}}
+    This part will be shown when type equals "special"
+{{elseif isValid}}
+    This part will be shown if isValid is truthy
 {{else}}
-    This part will be shown if isActive and isValid are both "falsy" values
+    This part will be shown if none of the above matched
 {{/if}}
 ```
 
@@ -283,11 +299,13 @@ You can use the if helper to conditionally render a block. If its argument retur
 <?php
 
 $model = [
-    "isActive" => true,
-    "isValid" => false
+    "isActive" => false,
+    "type"     => "special",
+    "isValid"  => false
 ];
 
 echo $handlebars->render($template, $model);
+// -> This part will be shown when type equals "special"
 ```
 
 ### UNLESS
@@ -454,8 +472,10 @@ $model = [
 ```html
 {{#if isActive}}
     This part will be shown if it is active
-{{#else if isValid}}
-    This part will be shown if it is valid
+{{elseif `entry_type == "product"`}}
+    This part will be shown when entry_type equals "product"
+{{elseif isValid}}
+    This part will be shown if isValid is truthy
 {{else}}
     This part will be shown if isActive and isValid are both "falsy" values
 {{/if}}

@@ -237,11 +237,13 @@ class Context
         }
 
         $level = 0;
+        $hasExplicitLevel = false;
         while (substr($variableName, 0, 3) == '../') {
             $variableName = trim(substr($variableName, 3));
             $level++;
+            $hasExplicitLevel = true;
         }
-        if (count($this->stack) < $level) {
+        if (count($this->stack) <= $level) {
             if ($strict) {
                 throw new InvalidArgumentException(
                     'can not find variable in context'
@@ -250,12 +252,11 @@ class Context
 
             return '';
         }
-        end($this->stack);
-        while ($level) {
-            prev($this->stack);
-            $level--;
-        }
-        $current = current($this->stack);
+
+        // Use index-based access so we can also walk up parent scopes below
+        $stackIndex = count($this->stack) - 1 - $level;
+        $current = $this->stack[$stackIndex];
+
         if (!$variableName) {
             if ($strict) {
                 throw new InvalidArgumentException(
@@ -267,12 +268,39 @@ class Context
             return $current;
         } else {
             $chunks = explode('.', $variableName);
-            foreach ($chunks as $chunk) {
-                if (is_string($current) and $current == '') {
-                    return $current;
+            $value = $this->resolveChunks($current, $chunks, $strict);
+
+            // If not found and no explicit ../ was given, walk up parent scopes automatically
+            if ($value === '' && !$hasExplicitLevel) {
+                for ($i = $stackIndex - 1; $i >= 0; $i--) {
+                    $value = $this->resolveChunks($this->stack[$i], $chunks, false);
+                    if ($value !== '') {
+                        return $value;
+                    }
                 }
-                $current = $this->findVariableInContext($current, $chunk, $strict);
             }
+
+            return $value;
+        }
+    }
+
+    /**
+     * Resolve a chain of property chunks against a context value.
+     *
+     * @param mixed   $context  Starting context value
+     * @param array   $chunks   Property name segments (from explode('.', $variableName))
+     * @param boolean $strict   Throw on missing property when true
+     *
+     * @return mixed Resolved value, or '' when not found
+     */
+    private function resolveChunks($context, array $chunks, $strict = false)
+    {
+        $current = $context;
+        foreach ($chunks as $chunk) {
+            if (is_string($current) && $current === '') {
+                return '';
+            }
+            $current = $this->findVariableInContext($current, $chunk, $strict);
         }
         return $current;
     }
