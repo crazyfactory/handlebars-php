@@ -287,9 +287,11 @@ Conditions support three forms:
 |------|---------|
 | Truthiness check | `{{#if isActive}}` |
 | Equality | `` {{#if `type == "product"`}} `` |
-| Inequality | `` {{#if `price != originalPrice`}} `` |
+| Inequality | `` {{#if `count != 0`}} `` |
+| Numeric comparison | `` {{#if `count > 5`}} ``, `` {{#if `price <= 9.99`}} `` |
+| Strict equality | `` {{#if `a === b`}} ``, `` {{#if `a !== b`}} `` |
 
-Comparison expressions (`==` / `!=`) must be wrapped in backticks. Operands can be quoted string literals, numeric literals, or context variable paths.
+Comparison expressions must be wrapped in backticks. Supported operators: `==`, `!=`, `===`, `!==`, `>`, `>=`, `<`, `<=`. Operands can be quoted string literals, numeric literals (including floats), context variable paths, or data variables such as `@index`. When both sides are numeric, a numeric (non-lexicographic) comparison is performed.
 
 > **Note:** Use `{{elseif ...}}` (no `#` prefix, no space) — `{{#elseif ...}}` and `{{else if ...}}` are not supported.
 
@@ -300,6 +302,8 @@ Comparison expressions (`==` / `!=`) must be wrapped in backticks. Operands can 
     This part will be shown if it is active
 {{elseif `type == "special"`}}
     This part will be shown when type equals "special"
+{{elseif `count > 0`}}
+    This part will be shown when count is positive
 {{elseif isValid}}
     This part will be shown if isValid is truthy
 {{else}}
@@ -313,11 +317,18 @@ Comparison expressions (`==` / `!=`) must be wrapped in backticks. Operands can 
 $model = [
     "isActive" => false,
     "type"     => "special",
+    "count"    => 0,
     "isValid"  => false
 ];
 
 echo $handlebars->render($template, $model);
 // -> This part will be shown when type equals "special"
+```
+
+Data variables like `@index` can also be used inside backtick expressions:
+
+```html
+{{#each items}}{{#if `@index == 0`}}First: {{/if}}{{this}}{{/each}}
 ```
 
 ### UNLESS
@@ -486,12 +497,16 @@ $model = [
     This part will be shown if it is active
 {{elseif `entry_type == "product"`}}
     This part will be shown when entry_type equals "product"
+{{elseif `count > 0`}}
+    This part will be shown when count is positive
 {{elseif isValid}}
     This part will be shown if isValid is truthy
 {{else}}
     This part will be shown if isActive and isValid are both "falsy" values
 {{/if}}
 ```
+
+Supported comparison operators in backtick expressions: `==`, `!=`, `===`, `!==`, `>`, `>=`, `<`, `<=`.
 
 ### Unless
 ```html
