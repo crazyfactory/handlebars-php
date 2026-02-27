@@ -284,11 +284,14 @@ class Helpers
     /**
      * Evaluate a condition string.
      *
-     * - Comparison expressions (== / !=) MUST be wrapped in backticks:
+     * - Comparison expressions (==, !=, ===, !==, >, >=, <, <=) MUST be wrapped in backticks:
      *     `entry_type == "product"`
      *     `price.raw != price.original`
+     *     `count >= 10`
+     *     `score < max_score`
      *   Operands can be quoted string literals, numeric literals, or context
-     *   variable paths.
+     *   variable paths. When both sides are numeric, a numeric comparison is
+     *   performed.
      *
      * - Plain variables are checked for truthiness without backticks:
      *     some_var
@@ -302,11 +305,24 @@ class Helpers
         $args = trim($args, " \t\n\r\0\x0B");
         if (strlen($args) >= 2 && $args[0] === '`' && $args[-1] === '`') {
             $expr = trim(substr($args, 1, -1));
-            if (preg_match('/^(.+?)\s*==\s*(.+)$/', $expr, $m)) {
-                return $this->resolveArg($context, trim($m[1])) == $this->resolveArg($context, trim($m[2]));
-            }
-            if (preg_match('/^(.+?)\s*!=\s*(.+)$/', $expr, $m)) {
-                return $this->resolveArg($context, trim($m[1])) != $this->resolveArg($context, trim($m[2]));
+            if (preg_match('/^(.+?)\s*(===|!==|==|!=|>=|<=|>|<)\s*(.+)$/', $expr, $m)) {
+                $left  = $this->resolveArg($context, trim($m[1]));
+                $op    = $m[2];
+                $right = $this->resolveArg($context, trim($m[3]));
+                if (is_numeric($left) && is_numeric($right)) {
+                    $left  = $left  + 0;
+                    $right = $right + 0;
+                }
+                switch ($op) {
+                    case '===': return $left === $right;
+                    case '!==': return $left !== $right;
+                    case '==':  return $left ==  $right;
+                    case '!=':  return $left !=  $right;
+                    case '>=':  return $left >=  $right;
+                    case '<=':  return $left <=  $right;
+                    case '>':   return $left >   $right;
+                    case '<':   return $left <   $right;
+                }
             }
         }
         return (bool) $context->get($args);

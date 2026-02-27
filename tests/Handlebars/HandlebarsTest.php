@@ -312,6 +312,124 @@ class HandlebarsTest extends PHPUnit\Framework\TestCase
                 ['count' => '5'],
                 'nonzero'
             ],
+
+            // --- if: greater-than / less-than with integers ---
+            [
+                '{{#if `count > 5`}}big{{else}}small{{/if}}',
+                ['count' => 10],
+                'big'
+            ],
+            [
+                '{{#if `count > 5`}}big{{else}}small{{/if}}',
+                ['count' => 3],
+                'small'
+            ],
+            [
+                '{{#if `count < 5`}}small{{else}}big{{/if}}',
+                ['count' => 2],
+                'small'
+            ],
+            [
+                '{{#if `count < 5`}}small{{else}}big{{/if}}',
+                ['count' => 7],
+                'big'
+            ],
+
+            // --- if: greater-than-or-equal / less-than-or-equal ---
+            [
+                '{{#if `count >= 5`}}yes{{else}}no{{/if}}',
+                ['count' => 5],
+                'yes'
+            ],
+            [
+                '{{#if `count >= 5`}}yes{{else}}no{{/if}}',
+                ['count' => 4],
+                'no'
+            ],
+            [
+                '{{#if `count <= 5`}}yes{{else}}no{{/if}}',
+                ['count' => 5],
+                'yes'
+            ],
+            [
+                '{{#if `count <= 5`}}yes{{else}}no{{/if}}',
+                ['count' => 6],
+                'no'
+            ],
+
+            // --- if: numeric string values are coerced (not lexicographic) ---
+            [
+                '{{#if `count > 9`}}yes{{else}}no{{/if}}',
+                ['count' => '10'],
+                'yes'
+            ],
+            [
+                '{{#if `count < 10`}}yes{{else}}no{{/if}}',
+                ['count' => '9'],
+                'yes'
+            ],
+
+            // --- if: float comparisons ---
+            [
+                '{{#if `price >= 9.99`}}yes{{else}}no{{/if}}',
+                ['price' => 10.0],
+                'yes'
+            ],
+            [
+                '{{#if `price >= 9.99`}}yes{{else}}no{{/if}}',
+                ['price' => 9.98],
+                'no'
+            ],
+            [
+                '{{#if `price < 1.5`}}cheap{{else}}expensive{{/if}}',
+                ['price' => 1.0],
+                'cheap'
+            ],
+            [
+                '{{#if `price < 1.5`}}cheap{{else}}expensive{{/if}}',
+                ['price' => 1.5],
+                'expensive'
+            ],
+            [
+                '{{#if `score == 3.14`}}pi{{else}}nope{{/if}}',
+                ['score' => 3.14],
+                'pi'
+            ],
+
+            // --- if: comparing two context variables numerically ---
+            [
+                '{{#if `a > b`}}yes{{else}}no{{/if}}',
+                ['a' => 10, 'b' => 5],
+                'yes'
+            ],
+            [
+                '{{#if `a > b`}}yes{{else}}no{{/if}}',
+                ['a' => 5, 'b' => 10],
+                'no'
+            ],
+            [
+                '{{#if `a <= b`}}yes{{else}}no{{/if}}',
+                ['a' => 5, 'b' => 5],
+                'yes'
+            ],
+
+            // --- elseif: comparison in elseif with > / < ---
+            [
+                '{{#if `count < 0`}}negative{{elseif `count == 0`}}zero{{elseif `count > 0`}}positive{{/if}}',
+                ['count' => 7],
+                'positive'
+            ],
+            [
+                '{{#if `count < 0`}}negative{{elseif `count == 0`}}zero{{elseif `count > 0`}}positive{{/if}}',
+                ['count' => 0],
+                'zero'
+            ],
+            [
+                '{{#if `count < 0`}}negative{{elseif `count == 0`}}zero{{elseif `count > 0`}}positive{{/if}}',
+                ['count' => -3],
+                'negative'
+            ],
+
         ];
     }
 
@@ -474,6 +592,12 @@ class HandlebarsTest extends PHPUnit\Framework\TestCase
                 'outputNotEnabled' => 'fruit19true',
                 'outputEnabled' => 'fruit19true',
             ],
+            [
+                'src' => '{{#each items}}{{#if `@index == 1`}}[{{this}}]{{else}}{{this}}{{/if}}{{/each}}',
+                'data' => ['items' => ['a', 'b', 'c']],
+                'outputNotEnabled' => 'abc',
+                'outputEnabled' => 'a[b]c',
+            ]
         ];
 
         // Build out a test case for when the enableDataVariables feature is enabled and when it's not
